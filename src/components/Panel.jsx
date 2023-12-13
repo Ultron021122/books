@@ -7,32 +7,44 @@ export function Panel() {
     const [error, setError] = useState(null);
     const [listaLectura, setListaLectura] = useState([]);
 
+    const fetchLibros = async () => {
+        try {
+            const response = await axios.get('/api/books.json');
+            setLibros(response.data.library);
+            setLoad(false);
+        } catch (error) {
+            setError(error);
+            setLoad(false);
+        }
+    };
+
     useEffect(() => {
-        axios.get('/api/books.json')
-            .then(response => {
-                setLibros(response.data.library);
-                setLoad(false);
-            })
-            .catch(error => {
-                setError(error);
-                setLoad(false);
-            });
+        fetchLibros();
     }, []);
 
-    const handleDragStart = (e, tituloLibro, coverLibro) => {
+    const handleDragStart = (e, tituloLibro) => {
         e.dataTransfer.setData('text/plain', tituloLibro);
-        e.dataTransfer.setData('cover/plain', coverLibro);
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
         const tituloLibro = e.dataTransfer.getData('text/plain');
-        const coverLibro = e.dataTransfer.getData('cover/plain');
+        const libro = libros.find(libro => libro.book.title === tituloLibro);
 
-        // Añade a la lista de lectura
-        setListaLectura(prevLista => [...prevLista, [tituloLibro, coverLibro]]);
+        if (libro) {
+            setListaLectura(prevLista => [...prevLista, libro]);
+            setLibros(prevLibros => prevLibros.filter(libro => libro.book.title !== tituloLibro));
+        }
+    };
 
-        setLibros(prevLibros => prevLibros.filter(libro => libro.book.title !== tituloLibro));
+    const handleRemoveFromList = (tituloLibro) => {
+        const add = listaLectura.find(libro => libro.book.title === tituloLibro);
+        setListaLectura(prevLista => prevLista.filter(libro => libro.book.title !== tituloLibro));
+    
+        const libro = libros.find(libro => libro.book.title === tituloLibro);
+        if (!libro) {
+            setLibros(prevLibros => [...prevLibros, add]);
+        }
     };
 
     if (load) {
@@ -41,37 +53,53 @@ export function Panel() {
     if (error) {
         return <p>Error al cargar datos: {error.message}</p>;
     }
-    console.log(listaLectura);
+
     return (
         <main className="container mx-auto">
             <h1 className='text-3xl py-4 text-white'>Libros</h1>
-            <div>
-                <h2 className='text-white'>Libros disponibles</h2>
-                <div className="flex justify-around m-8">
-                    <div className="container grid md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <h2 className='text-white'>Libros disponibles</h2>
+            <div className="flex justify-between">
+                <div className="container">
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-2">
                         {libros.map((libro, index) => (
                             <div
                                 key={index}
                                 className="border p-2 m-2 cursor-move"
                                 draggable
-                                onDragStart={(e) => handleDragStart(e, libro.book.title, libro.book.cover)}
+                                onDragStart={(e) => handleDragStart(e, libro.book.title)}
                             >
-                                <img src={libro.book.cover} className='object-cover h-48 w-full rounded-t-sm' alt={`Bandera de ${libro.book.title}`} />
+                                <img
+                                    src={libro.book.cover}
+                                    className='object-cover w-full rounded-t-sm'
+                                    alt={`Titulo del libro ${libro.book.title}`}
+                                />
                             </div>
                         ))}
                     </div>
+                </div>
+                <div
+                    className='container'
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleDrop}
+                >
                     <div
-                        className='container grid md:grid-cols-2 lg:grid-cols-3 gap-2'
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={handleDrop}
+                        className='grid md:grid-cols-2 lg:grid-cols-3 gap-2'
                     >
                         {
                             listaLectura.map((libro, index) => (
-                                <img
-                                    src={libro[1]}
-                                    key={index}
-                                    className='border p-2 m-2'
-                                />
+                                <div key={index} className="border p-2 m-2 flex-shrink-0 relative">
+                                    <img
+                                        src={libro.book.cover}
+                                        className='object-cover w-full rounded-t-sm'
+                                        alt={`Titulo del libro ${libro.book.title}`}
+                                    />
+                                    <button
+                                        className="absolute top-0 right-0 bg-black bg-opacity-80 text-white px-4 py-2 rounded-md"
+                                        onClick={() => handleRemoveFromList(libro.book.title)}
+                                    >
+                                        ✖
+                                    </button>
+                                </div>
                             ))}
                     </div>
                 </div>
